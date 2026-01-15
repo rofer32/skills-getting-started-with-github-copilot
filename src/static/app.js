@@ -4,11 +4,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
-  // Function to fetch activities from API
-  async function fetchActivities() {
+  // In-memory activity database (hardcoded data)
+  let activities = {
+    "Sport": {
+      "description": "Physical education and sports activities including basketball, soccer, and volleyball",
+      "schedule": "Mondays, Wednesdays, Fridays, 3:30 PM - 5:00 PM",
+      "max_participants": 25,
+      "participants": ["john@mergington.edu", "olivia@mergington.edu"]
+    },
+    "Culture": {
+      "description": "Explore art, music, theater, and cultural diversity through various activities",
+      "schedule": "Tuesdays and Thursdays, 3:30 PM - 4:30 PM",
+      "max_participants": 20,
+      "participants": ["emma@mergington.edu", "sophia@mergington.edu"]
+    },
+    "Chess Club": {
+      "description": "Learn strategies and compete in chess tournaments",
+      "schedule": "Fridays, 3:30 PM - 5:00 PM",
+      "max_participants": 12,
+      "participants": ["michael@mergington.edu", "daniel@mergington.edu"]
+    },
+    "Programming Class": {
+      "description": "Learn programming fundamentals and build software projects",
+      "schedule": "Tuesdays and Thursdays, 4:45 PM - 5:45 PM",
+      "max_participants": 20,
+      "participants": []
+    }
+  };
+
+  // Function to display activities
+  function fetchActivities() {
     try {
-      const response = await fetch("/activities");
-      const activities = await response.json();
 
       // Clear loading message
       activitiesList.innerHTML = "";
@@ -62,37 +88,52 @@ document.addEventListener("DOMContentLoaded", () => {
     const email = document.getElementById("email").value;
     const activity = document.getElementById("activity").value;
 
-    try {
-      const response = await fetch(
-        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
-        {
-          method: "POST",
-        }
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
-        signupForm.reset();
-      } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
-      }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
-    } catch (error) {
-      messageDiv.textContent = "Failed to sign up. Please try again.";
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      messageDiv.textContent = "Please enter a valid email address";
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
-      console.error("Error signing up:", error);
+      return;
     }
+
+    // Validate activity exists
+    if (!activities[activity]) {
+      messageDiv.textContent = "Activity not found";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      return;
+    }
+
+    const activityData = activities[activity];
+
+    // Check if already signed up
+    if (activityData.participants.includes(email)) {
+      messageDiv.textContent = "Student already signed up for this activity";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      return;
+    }
+
+    // Check capacity
+    if (activityData.participants.length >= activityData.max_participants) {
+      messageDiv.textContent = "Activity is full";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      return;
+    }
+
+    // Add student
+    activityData.participants.push(email);
+    messageDiv.textContent = `Signed up ${email} for ${activity}`;
+    messageDiv.className = "success";
+    signupForm.reset();
+    fetchActivities(); // Refresh the display
+    
+    messageDiv.classList.remove("hidden");
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
   });
 
   // Handle delete participant
@@ -105,36 +146,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      try {
-        const response = await fetch(
-          `/activities/${encodeURIComponent(activity)}/participant/${encodeURIComponent(email)}`,
-          {
-            method: "DELETE",
-          }
-        );
-
-        const result = await response.json();
-
-        if (response.ok) {
-          messageDiv.textContent = result.message;
-          messageDiv.className = "success";
-          // Reload activities
-          fetchActivities();
-        } else {
-          messageDiv.textContent = result.detail || "An error occurred";
-          messageDiv.className = "error";
-        }
-
-        messageDiv.classList.remove("hidden");
-        setTimeout(() => {
-          messageDiv.classList.add("hidden");
-        }, 5000);
-      } catch (error) {
-        messageDiv.textContent = "Failed to delete participant. Please try again.";
+      // Remove participant
+      const activityData = activities[activity];
+      const index = activityData.participants.indexOf(email);
+      
+      if (index > -1) {
+        activityData.participants.splice(index, 1);
+        messageDiv.textContent = `Removed ${email} from ${activity}`;
+        messageDiv.className = "success";
+        fetchActivities(); // Refresh the display
+      } else {
+        messageDiv.textContent = "Participant not found";
         messageDiv.className = "error";
-        messageDiv.classList.remove("hidden");
-        console.error("Error deleting participant:", error);
       }
+
+      messageDiv.classList.remove("hidden");
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
     }
   });
 
